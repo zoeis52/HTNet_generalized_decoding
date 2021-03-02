@@ -25,7 +25,7 @@ import pyriemann
 
 # Custom imports
 from htnet_model import htnet
-from model_utils import load_data, folds_choose_subjects, subject_data_inds, roi_proj_rf, str2bool, get_custom_motor_rois, proj_mats_good_rois
+from model_utils import load_data, folds_choose_subjects, subject_data_inds, roi_proj_rf, str2bool, get_custom_motor_rois, proj_mats_good_rois, get_quadrants
 
 def cnn_model(X_train, Y_train,X_validate, Y_validate,X_test,Y_test,chckpt_path,modeltype,
               proj_mat_out=None,sbj_order_train=None,sbj_order_validate=None,
@@ -159,12 +159,17 @@ def run_nn_models(sp,n_folds,combined_sbjs,lp, roi_proj_loadpath,
         np.save(sp+"proj_mat_out", proj_mat_out)
         
         # Load ECoG data (if test_day is None, then X_test_orig, y_test_orig, and sbj_order_test_load will be empty)
+        feat_dat = 'reach_a'
         X,y,X_test_orig,y_test_orig,sbj_order,sbj_order_test_load = load_data(pats_ids_in, lp,
                                                                               n_chans_all=n_chans_all,
-                                                                              test_day=test_day, tlim=tlim)
+                                                                              test_day=test_day, tlim=tlim,
+                                                                              feat_dat = feat_dat)
         X[np.isnan(X)] = 0 # set all NaN's to 0
-        # Identify the number of unique labels (or classes) present
-        nb_classes = len(np.unique(y))
+#         changes reach angle to quadrants
+# TO DO: update with if statements at some point
+        y = get_quadrants(y)
+        y_test_orig = get_quadrants(y_test_orig)
+        print("changed to quads:", y)
         
         # Choose which subjects for training/validation/testing for every fold (splits are based on random seed)
         sbj_inds_all_train, sbj_inds_all_val, sbj_inds_all_test = folds_choose_subjects(n_folds, pats_ids_in,
@@ -336,10 +341,17 @@ def run_nn_models(sp,n_folds,combined_sbjs,lp, roi_proj_loadpath,
         # Single subject model fitting
         for pat_id_curr in pats_ids_in:
             # Load ECoG data
+            feat_dat = 'reach_a'
             X,y,X_test,y_test,sbj_order,sbj_order_test = load_data(pat_id_curr, lp,
-                                                                   n_chans_all=n_chans_all,
-                                                                   test_day=test_day, tlim=tlim)
+                                                                        n_chans_all=n_chans_all,
+                                                                        test_day=test_day, tlim=tlim,
+                                                                        feat_dat = feat_dat)
             X[np.isnan(X)] = 0 # set all NaN's to 0
+    #         changes reach angle to quadrants
+    # TO DO: update with if statements at some point
+            y = get_quadrants(y)
+            y_test = get_quadrants(y_test)
+            print("changed to quads:", y)
             # Identify the number of unique labels (or classes) present
             nb_classes = len(np.unique(y))
             

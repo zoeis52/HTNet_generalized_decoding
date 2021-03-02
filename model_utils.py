@@ -285,7 +285,8 @@ def proj_mats_good_rois(patient_ids,dipole_dens_thresh = .1, n_chans_all = 150,
     return proj_mat_out,good_ROIs,chan_ind_vals_all
 
 
-def load_data(pats_ids_in, lp, n_chans_all=64, test_day=None, tlim=[-1,1], event_types=['rest','move']):
+def load_data(pats_ids_in, lp, n_chans_all=64, test_day=None, tlim=[-1,1], event_types=['rest','move'],
+              feat_dat = 'reach_a'):
     '''
     Load ECoG data from all subjects and combine (uses xarray variables)
     
@@ -297,11 +298,12 @@ def load_data(pats_ids_in, lp, n_chans_all=64, test_day=None, tlim=[-1,1], event
         pats_ids_in = [pats_ids_in]
     sbj_order,sbj_order_test = [],[]
     X_test_subj,y_test_subj = [],[] #placeholder vals
-        
+    
     #Gather each subjects data, and concatenate all days
     for j in tqdm(range(len(pats_ids_in))):
         pat_curr = pats_ids_in[j]
         ep_data_in = xr.open_dataset(lp+pat_curr+'_ecog_data.nc')
+        ep_metadata_in = xr.open_dataset(lp+pat_curr+'_metadata.nc')
         ep_times = np.asarray(ep_data_in.time)
         time_inds = np.nonzero(np.logical_and(ep_times>=tlim[0],ep_times<=tlim[1]))[0]
         n_ecog_chans = (len(ep_data_in.channels)-1)
@@ -315,8 +317,6 @@ def load_data(pats_ids_in, lp, n_chans_all=64, test_day=None, tlim=[-1,1], event
             n_chans_curr = n_chans_all
         else:
             n_chans_curr = n_ecog_chans
-            
-        
         
         days_all_in = np.asarray(ep_data_in.events)
         
@@ -337,15 +337,22 @@ def load_data(pats_ids_in, lp, n_chans_all=64, test_day=None, tlim=[-1,1], event
         #Extract data and labels
         dat_train = ep_data_in[dict(events=days_train_inds,channels=slice(0,n_chans_curr),
                                     time=time_inds)].to_array().values.squeeze()
-        labels_train = ep_data_in[dict(events=days_train_inds,channels=ep_data_in.channels[-1],
-                                       time=0)].to_array().values.squeeze()
+#         labels_train = ep_data_in[dict(events=days_train_inds,channels=ep_data_in.channels[-1],
+#                                        time=0)].to_array().values.squeeze()
+        
+        labels_train = ep_metadata_in[dict(events=days_train_inds, 
+                                           features=np.nonzero(np.asarray(ep_metadata_in.features)==\
+                                                               feat_dat)[0])].to_array().values.squeeze()
         sbj_order += [j]*dat_train.shape[0]
         
         if test_day is not None:
             dat_test = ep_data_in[dict(events=days_test_inds,channels=slice(0,n_chans_curr),
                                        time=time_inds)].to_array().values.squeeze()
-            labels_test = ep_data_in[dict(events=days_test_inds,channels=ep_data_in.channels[-1],
-                                          time=0)].to_array().values.squeeze()
+#             labels_test = ep_data_in[dict(events=days_test_inds,channels=ep_data_in.channels[-1],
+#                                           time=0)].to_array().values.squeeze()
+            labels_test = ep_metadata_in[dict(events=days_test_inds, 
+                                         features=np.nonzero(np.asarray(ep_metadata_in.features)==\
+                                                             feat_dat)[0])].to_array().values.squeeze()
             sbj_order_test += [j]*dat_test.shape[0]
             
         #Pad data in electrode dimension if necessary
@@ -363,7 +370,7 @@ def load_data(pats_ids_in, lp, n_chans_all=64, test_day=None, tlim=[-1,1], event
                 #Create dataset padded with zeros if less than n_chans_all, or cut down to n_chans_all
                 X_pad = np.zeros(dat_sh)
                 X_pad[:,:n_ecog_chans,...] = dat_test
-                dat_test = X_pad.copy()
+                dat_test = X_pad.copy() 
         
         #Concatenate across subjects
         if j==0:
@@ -384,6 +391,19 @@ def load_data(pats_ids_in, lp, n_chans_all=64, test_day=None, tlim=[-1,1], event
     print('Data loaded!')
     
     return X_subj,y_subj,X_test_subj,y_test_subj,sbj_order,sbj_order_test
+
+def get_quadrants(y):
+    for i, a in enumerate(y):
+        if 45 <= a < 90:
+            y[i] = 1
+        elif 90 <= a < 180:
+            y[i] = 2
+        elif 0 > a > -90:
+            y[i] = 4
+        else:
+            y[i] = 3
+    
+    return y
 
 
 def randomize_data(sp, X, y, sbj_order, overwrite=False):

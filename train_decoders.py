@@ -14,12 +14,12 @@ from transfer_learn_nn_eeg import transfer_learn_nn_eeg
 t_start = time.time()
 ##################USER-DEFINED PARAMETERS##################
 # Where data will be saved: rootpath + dataset + '/'
-rootpath = '.../'
-dataset = 'move_rest_ecog'
+rootpath = '/home/zsteineh/zoe_sanbox/regression/results/quadrants/'
+dataset = 'reach_a'
 
 # Data load paths
-ecog_lp = rootpath + 'ecog_dataset/' # data load path
-ecog_roi_proj_lp = ecog_lp+'proj_mat/' #
+ecog_lp = '/data1/users/stepeter/mvmt_init/regression_data/' # rootpath + 'ecog_dataset/' # data load path
+ecog_roi_proj_lp = '/data1/users/stepeter/mvmt_init/regression_data/roi_proj_matlab/' 
 
 ### Tailored decoder params (within participant) ###
 n_folds_tail = 3 # number of folds (per participant)
@@ -70,6 +70,9 @@ n_val_trials = [8,16,34,50]
 ### Train same modality decoders with different numbers of training participants ###
 max_train_parts = 10 # use 1--max_train_subs training participants
 n_val_parts = 1 # number of validation participants to use
+
+pats_ids_in=['subj_01','subj_02','subj_03','subj_04','subj_05','subj_06',
+            'subj_07','subj_08','subj_09','subj_10','subj_11','subj_12']
 ##################USER-DEFINED PARAMETERS##################
 
 #### Tailored decoder training ####
@@ -84,7 +87,7 @@ for s,val in enumerate(spec_meas_tail):
         models = ['eegnet_hilb','eegnet','rf','riemann'] # fit all decoder types
     else:
         models = ['eegnet_hilb'] # avoid fitting non-HTNet models again
-    run_nn_models(single_sp, n_folds_tail, combined_sbjs, ecog_lp, ecog_roi_proj_lp, test_day = 'last', do_log=do_log,
+    run_nn_models(single_sp, n_folds_tail, combined_sbjs, ecog_lp, ecog_roi_proj_lp, pats_ids_in = pats_ids_in, test_day = 'last', do_log=do_log,
                   epochs=epochs_tail, patience=patience_tail, models=models, compute_val=compute_val,
                   F1 = hyps_tail['F1'], dropoutRate = hyps_tail['dropoutRate'], kernLength = hyps_tail['kernLength'],
                   kernLength_sep = hyps_tail['kernLength_sep'], dropoutType = hyps_tail['dropoutType'],
@@ -92,108 +95,108 @@ for s,val in enumerate(spec_meas_tail):
 
 
 #### Same modality training ####
-for s,val in enumerate(spec_meas_same):
-    do_log = True if val == 'power_log' else False
-    compute_val = 'power' if val == 'power_log' else val
-    multi_sp = rootpath + dataset  + '/combined_sbjs_' + val + '/'
-    if not os.path.exists(multi_sp):
-        os.makedirs(multi_sp)
-    combined_sbjs = True
-    if s==0:
-        models = ['eegnet_hilb','eegnet','rf','riemann'] # fit all decoder types
-    else:
-        models = ['eegnet_hilb'] # avoid fitting non-HTNet models again
-    run_nn_models(multi_sp, n_folds_same, combined_sbjs, ecog_lp, ecog_roi_proj_lp, test_day = 'last', do_log=do_log,
-                  epochs=epochs_same, patience=patience_same, models=models, compute_val=compute_val,
-                  F1 = hyps_same['F1'], dropoutRate = hyps_same['dropoutRate'], kernLength = hyps_same['kernLength'],
-                  kernLength_sep = hyps_same['kernLength_sep'], dropoutType = hyps_same['dropoutType'],
-                  D = hyps_same['D'], F2 = hyps_same['F2'], n_estimators = hyps_same['n_estimators'], max_depth = hyps_same['max_depth'])
+# for s,val in enumerate(spec_meas_same):
+#     do_log = True if val == 'power_log' else False
+#     compute_val = 'power' if val == 'power_log' else val
+#     multi_sp = rootpath + dataset  + '/combined_sbjs_' + val + '/'
+#     if not os.path.exists(multi_sp):
+#         os.makedirs(multi_sp)
+#     combined_sbjs = True
+#     if s==0:
+#         models = ['eegnet_hilb','eegnet','rf','riemann'] # fit all decoder types
+#     else:
+#         models = ['eegnet_hilb'] # avoid fitting non-HTNet models again
+#     run_nn_models(multi_sp, n_folds_same, combined_sbjs, ecog_lp, ecog_roi_proj_lp, test_day = 'last', do_log=do_log,
+#                   epochs=epochs_same, patience=patience_same, models=models, compute_val=compute_val,
+#                   F1 = hyps_same['F1'], dropoutRate = hyps_same['dropoutRate'], kernLength = hyps_same['kernLength'],
+#                   kernLength_sep = hyps_same['kernLength_sep'], dropoutType = hyps_same['dropoutType'],
+#                   D = hyps_same['D'], F2 = hyps_same['F2'], n_estimators = hyps_same['n_estimators'], max_depth = hyps_same['max_depth'])
 
 #### Unseen modality testing ####
-for s,val in enumerate(spec_meas_same):
-    if s==0:
-        models = ['eegnet_hilb','eegnet','rf','riemann'] # fit all decoder types
-    else:
-        models = ['eegnet_hilb']
-    for mod_curr in models:
-        unseen_modality_test(eeg_lp, eeg_roi_proj_lp, rootpath + dataset + '/',
-                             pow_type = val, model_type = mod_curr)
+# for s,val in enumerate(spec_meas_same):
+#     if s==0:
+#         models = ['eegnet_hilb','eegnet','rf','riemann'] # fit all decoder types
+#     else:
+#         models = ['eegnet_hilb']
+#     for mod_curr in models:
+#         unseen_modality_test(eeg_lp, eeg_roi_proj_lp, rootpath + dataset + '/',
+#                              pow_type = val, model_type = mod_curr)
     
 
 #### Same modality fine-tuning ####
-spec_meas = 'power'
-for j,curr_layer in enumerate(layers_to_finetune):
-    # Create save directory if does not exist already
-    if not os.path.exists(sp_finetune[j]):
-        os.makedirs(sp_finetune[j])
+# spec_meas = 'power'
+# for j,curr_layer in enumerate(layers_to_finetune):
+#     # Create save directory if does not exist already
+#     if not os.path.exists(sp_finetune[j]):
+#         os.makedirs(sp_finetune[j])
 
-    # Fine-tune with each amount of train/val data
-    if curr_layer==layers_to_finetune[-1]:
-        single_sub = True
-    else:
-        single_sub = False
+#     # Fine-tune with each amount of train/val data
+#     if curr_layer==layers_to_finetune[-1]:
+#         single_sub = True
+#     else:
+#         single_sub = False
     
-    lp_finetune = rootpath + dataset  + '/combined_sbjs_'+spec_meas+'/'
-    if use_per_vals:
-        for i in range(len(per_train_trials)):
-            transfer_learn_nn(lp_finetune, sp_finetune[j],
-                              model_type = model_type_finetune, layers_to_finetune = curr_layer,
-                              use_per_vals = use_per_vals, per_train_trials = per_train_trials[i], 
-                              per_val_trials = per_val_trials[i],single_sub = single_sub, epochs=epochs_same, patience=patience_same) 
-    else:
-        for i in range(len(n_train_trials)):
-            transfer_learn_nn(lp_finetune, sp_finetune[j],
-                              model_type = model_type_finetune, layers_to_finetune = curr_layer,
-                              use_per_vals = use_per_vals, n_train_trials = n_train_trials[i],
-                              n_val_trials = n_val_trials[i], single_sub = single_sub, epochs=epochs_same, patience=patience_same)
+#     lp_finetune = rootpath + dataset  + '/combined_sbjs_'+spec_meas+'/'
+#     if use_per_vals:
+#         for i in range(len(per_train_trials)):
+#             transfer_learn_nn(lp_finetune, sp_finetune[j],
+#                               model_type = model_type_finetune, layers_to_finetune = curr_layer,
+#                               use_per_vals = use_per_vals, per_train_trials = per_train_trials[i], 
+#                               per_val_trials = per_val_trials[i],single_sub = single_sub, epochs=epochs_same, patience=patience_same) 
+#     else:
+#         for i in range(len(n_train_trials)):
+#             transfer_learn_nn(lp_finetune, sp_finetune[j],
+#                               model_type = model_type_finetune, layers_to_finetune = curr_layer,
+#                               use_per_vals = use_per_vals, n_train_trials = n_train_trials[i],
+#                               n_val_trials = n_val_trials[i], single_sub = single_sub, epochs=epochs_same, patience=patience_same)
             
 #### Unseen modality fine-tuning ####
-spec_meas = 'relative_power'
-for j,curr_layer in enumerate(layers_to_finetune):
-    sp_finetune_eeg = sp_finetune[j][:-1]+'_eeg/'
-    # Create save directory if does not exist already
-    if not os.path.exists(sp_finetune_eeg):
-        os.makedirs(sp_finetune_eeg)
+# spec_meas = 'relative_power'
+# for j,curr_layer in enumerate(layers_to_finetune):
+#     sp_finetune_eeg = sp_finetune[j][:-1]+'_eeg/'
+#     # Create save directory if does not exist already
+#     if not os.path.exists(sp_finetune_eeg):
+#         os.makedirs(sp_finetune_eeg)
 
-    # Fine-tune with each amount of train/val data
-    if curr_layer==layers_to_finetune[-1]:
-        single_sub = True
-    else:
-        single_sub = False
+#     # Fine-tune with each amount of train/val data
+#     if curr_layer==layers_to_finetune[-1]:
+#         single_sub = True
+#     else:
+#         single_sub = False
     
-    lp_finetune = rootpath + dataset  + '/combined_sbjs_'+spec_meas+'/'
-    if use_per_vals:
-        for i in range(len(per_train_trials)):
-            transfer_learn_nn_eeg(lp_finetune, sp_finetune_eeg, eeg_lp,
-                                  model_type = model_type_finetune, layers_to_finetune = curr_layer,
-                                  use_per_vals = use_per_vals, per_train_trials = per_train_trials[i], 
-                                  per_val_trials = per_val_trials[i],single_sub = single_sub, epochs=epochs_same, patience=patience_same) 
-    else:
-        for i in range(len(n_train_trials)):
-            transfer_learn_nn_eeg(lp_finetune, sp_finetune_eeg, eeg_lp,
-                                  model_type = model_type_finetune, layers_to_finetune = curr_layer,
-                                  use_per_vals = use_per_vals, n_train_trials = n_train_trials[i],
-                                  n_val_trials = n_val_trials[i], single_sub = single_sub, epochs=epochs_same, patience=patience_same)
+#     lp_finetune = rootpath + dataset  + '/combined_sbjs_'+spec_meas+'/'
+#     if use_per_vals:
+#         for i in range(len(per_train_trials)):
+#             transfer_learn_nn_eeg(lp_finetune, sp_finetune_eeg, eeg_lp,
+#                                   model_type = model_type_finetune, layers_to_finetune = curr_layer,
+#                                   use_per_vals = use_per_vals, per_train_trials = per_train_trials[i], 
+#                                   per_val_trials = per_val_trials[i],single_sub = single_sub, epochs=epochs_same, patience=patience_same) 
+#     else:
+#         for i in range(len(n_train_trials)):
+#             transfer_learn_nn_eeg(lp_finetune, sp_finetune_eeg, eeg_lp,
+#                                   model_type = model_type_finetune, layers_to_finetune = curr_layer,
+#                                   use_per_vals = use_per_vals, n_train_trials = n_train_trials[i],
+#                                   n_val_trials = n_val_trials[i], single_sub = single_sub, epochs=epochs_same, patience=patience_same)
 
 
 #### Training same modality decoders with different numbers of training participants ####
-for i in range(max_train_parts):
-    sp_curr = rootpath + dataset + '/combined_sbjs_ntra'+str(i+1)+'/'
-    combined_sbjs = True
-    if not os.path.exists(sp_curr):
-        os.makedirs(sp_curr)
-    run_nn_models(sp_curr,n_folds_same,combined_sbjs,ecog_lp,ecog_roi_proj_lp,test_day = 'last', do_log=False,
-                  epochs=epochs_same, patience=patience_same, models=['eegnet_hilb','eegnet','rf','riemann'], compute_val='power',
-                  n_val = n_val_parts, n_train = i + 1, F1 = hyps_same['F1'], dropoutRate = hyps_same['dropoutRate'],
-                  kernLength = hyps_same['kernLength'], kernLength_sep = hyps_same['kernLength_sep'], dropoutType = hyps_same['dropoutType'],
-                  D = hyps_same['D'], F2 = hyps_same['F2'], n_estimators = hyps_same['n_estimators'], max_depth = hyps_same['max_depth'])
-# Combine results into dataframes
-ntrain_combine_df(rootpath + dataset)
-frac_combine_df(rootpath + dataset, ecog_roi_proj_lp)
+# for i in range(max_train_parts):
+#     sp_curr = rootpath + dataset + '/combined_sbjs_ntra'+str(i+1)+'/'
+#     combined_sbjs = True
+#     if not os.path.exists(sp_curr):
+#         os.makedirs(sp_curr)
+#     run_nn_models(sp_curr,n_folds_same,combined_sbjs,ecog_lp,ecog_roi_proj_lp,test_day = 'last', do_log=False,
+#                   epochs=epochs_same, patience=patience_same, models=['eegnet_hilb','eegnet','rf','riemann'], compute_val='power',
+#                   n_val = n_val_parts, n_train = i + 1, F1 = hyps_same['F1'], dropoutRate = hyps_same['dropoutRate'],
+#                   kernLength = hyps_same['kernLength'], kernLength_sep = hyps_same['kernLength_sep'], dropoutType = hyps_same['dropoutType'],
+#                   D = hyps_same['D'], F2 = hyps_same['F2'], n_estimators = hyps_same['n_estimators'], max_depth = hyps_same['max_depth'])
+# # Combine results into dataframes
+# ntrain_combine_df(rootpath + dataset)
+# frac_combine_df(rootpath + dataset, ecog_roi_proj_lp)
     
     
 #### Pre-compute difference spectrograms for ECoG and EEG datasets ####
-diff_specs(rootpath + dataset  + '/combined_sbjs_power/', ecog_lp, ecog = True)
-diff_specs(rootpath + dataset  + '/combined_sbjs_power/', eeg_lp, ecog = False)
+# diff_specs(rootpath + dataset  + '/combined_sbjs_power/', ecog_lp, ecog = True)
+# diff_specs(rootpath + dataset  + '/combined_sbjs_power/', eeg_lp, ecog = False)
     
 print('Elapsed time: '+str(time.time() - t_start))
