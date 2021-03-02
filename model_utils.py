@@ -394,11 +394,11 @@ def load_data(pats_ids_in, lp, n_chans_all=64, test_day=None, tlim=[-1,1], event
 
 def get_quadrants(y):
     for i, a in enumerate(y):
-        if 45 <= a < 90:
+        if 45 <= a < 135:
             y[i] = 1
-        elif 90 <= a < 180:
+        elif (135 <= a or a <=-135):
             y[i] = 2
-        elif 0 > a > -90:
+        elif 45 > a > -45:
             y[i] = 4
         else:
             y[i] = 3

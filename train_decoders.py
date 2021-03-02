@@ -5,7 +5,7 @@ in the same xarray format (will need to specify loadpath too).
 import numpy as np
 import pdb,os,time
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0" #specify GPU to use
+os.environ["CUDA_VISIBLE_DEVICES"]="1" #specify GPU to use
 from run_nn_models import run_nn_models
 from transfer_learn_nn import transfer_learn_nn
 from model_utils import unseen_modality_test, diff_specs, ntrain_combine_df, frac_combine_df
@@ -14,7 +14,7 @@ from transfer_learn_nn_eeg import transfer_learn_nn_eeg
 t_start = time.time()
 ##################USER-DEFINED PARAMETERS##################
 # Where data will be saved: rootpath + dataset + '/'
-rootpath = '/home/zsteineh/zoe_sanbox/regression/results/quadrants/'
+rootpath = '/home/zsteineh/zoe_sanbox/regression/results/rotated_quadrants/'
 dataset = 'reach_a'
 
 # Data load paths
