@@ -17,7 +17,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint,EarlyStopping
 from keras import backend as K
 
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 from tqdm import tqdm
 from os import path
 from itertools import product
@@ -49,6 +49,10 @@ def cnn_model(X_train, Y_train,X_validate, Y_validate,X_test,Y_test,chckpt_path,
                   compute_val=compute_val,data_srate=ecog_srate)
     
     # Set up comiler, checkpointer, and early stopping during model fitting
+# Start here to change the metric to f1score.
+# will also need to update the model predictions
+# https://www.tensorflow.org/addons/api_docs/python/tfa/metrics/F1Score
+# Not doing this. For now will just calc and see if I need to incorporate into training
     model.compile(loss=loss, optimizer=optimizer, metrics = ['accuracy'])
 #     numParams    = model.count_params() # count number of parameters in the model
     checkpointer = ModelCheckpoint(filepath=chckpt_path,verbose=1,save_best_only=True)
@@ -77,22 +81,32 @@ def cnn_model(X_train, Y_train,X_validate, Y_validate,X_test,Y_test,chckpt_path,
     model.load_weights(chckpt_path)
 
     accs_lst = []
+    f1_lst = []
     if projectROIs:
         preds       = model.predict([X_train,proj_mat_out[sbj_order_train,...]]).argmax(axis = -1)
         accs_lst.append(np.mean(preds == Y_train.argmax(axis=-1)))
+        
         preds       = model.predict([X_validate,proj_mat_out[sbj_order_validate,...]]).argmax(axis = -1)
         accs_lst.append(np.mean(preds == Y_validate.argmax(axis=-1)))
+        
         preds       = model.predict([X_test,proj_mat_out[sbj_order_test,...]]).argmax(axis = -1)  
         accs_lst.append(np.mean(preds == Y_test.argmax(axis=-1)))
+        
     else:
         preds       = model.predict(X_train).argmax(axis = -1)
         accs_lst.append(np.mean(preds == Y_train.argmax(axis=-1)))
+        f1_lst.append(f1_score(Y_train.argmax(axis=-1), preds, average='macro'))
+
         preds       = model.predict(X_validate).argmax(axis = -1)
         accs_lst.append(np.mean(preds == Y_validate.argmax(axis=-1)))
+        f1_lst.append(f1_score(Y_validate.argmax(axis=-1), preds, average='macro'))
+
         preds       = model.predict(X_test).argmax(axis = -1)  
         accs_lst.append(np.mean(preds == Y_test.argmax(axis=-1)))
+        f1_lst.append(f1_score(Y_test.argmax(axis=-1), preds, average='macro'))
+        
     tf.keras.backend.clear_session() # avoids slowdowns when running fits for many folds
-    return accs_lst, np.array([last_epoch,t_fit_total])
+    return accs_lst, f1_lst, np.array([last_epoch,t_fit_total])
 
 def run_nn_models(sp,n_folds,combined_sbjs,lp, roi_proj_loadpath,
                   pats_ids_in=['EC01','EC02','EC03','EC04','EC05','EC06',
@@ -316,7 +330,7 @@ def run_nn_models(sp,n_folds,combined_sbjs,lp, roi_proj_loadpath,
                     
                     # Fit NN model using Keras
                     chckpt_path = sp+'checkpoint_gen_'+modeltype+'_fold'+str(i)+save_suffix+'.h5'
-                    accs_lst, last_epoch_tmp = cnn_model(X_train, Y_train,X_validate,Y_validate,X_test,Y_test,
+                    accs_lst, f1_lst, last_epoch_tmp = cnn_model(X_train, Y_train,X_validate,Y_validate,X_test,Y_test,
                                                          chckpt_path,modeltype,proj_mat_out2,sbj_order_train,
                                                          sbj_order_validate,sbj_order_test,nROIs=nROIs,
                                                          nb_classes = nb_classes,dropoutRate = dropoutRate, kernLength = kernLength, 
@@ -387,6 +401,7 @@ def run_nn_models(sp,n_folds,combined_sbjs,lp, roi_proj_loadpath,
                 # Create splits for train/val and fit model
                 split_len = X2.shape[0]//n_folds
                 accs = np.zeros([n_folds,3])
+                f1_scores = np.zeros([n_folds,3])
                 last_epochs = np.zeros([n_folds,2])
                 for frodo in range(n_folds):
                     val_inds = np.arange(0,split_len)+(frodo*split_len)
@@ -464,7 +479,7 @@ def run_nn_models(sp,n_folds,combined_sbjs,lp, roi_proj_loadpath,
                         # Fit NN model and store accuracies
                         chckpt_path = sp+'checkpoint_'+modeltype+'_'+pat_id_curr+'_testday_'+\
                                       str(test_day)+'_fold'+str(frodo)+save_suffix+'.h5'
-                        accs_lst, last_epoch_tmp = cnn_model(X_train, Y_train,X_validate,
+                        accs_lst, f1_lst, last_epoch_tmp = cnn_model(X_train, Y_train,X_validate,
                                                              Y_validate,X_test2,y_test2,chckpt_path,modeltype,
                                                              nb_classes = nb_classes,dropoutRate = dropoutRate,
                                                              kernLength = kernLength, F1 = F1, D = D, F2 = F2,
@@ -473,13 +488,16 @@ def run_nn_models(sp,n_folds,combined_sbjs,lp, roi_proj_loadpath,
                                                              patience = patience, early_stop_monitor = early_stop_monitor,do_log=do_log,
                                                              epochs = epochs, compute_val = compute_val,ecog_srate=ecog_srate)
 
+                        print('f1 scores:', f1_lst)
                         for ss in range(3):
                             accs[frodo,ss] = accs_lst[ss]
+                            f1_scores[frodo,ss] = f1_lst[ss]
                         
                         last_epochs[frodo,:] = last_epoch_tmp
                 
                 # Save accuracies (train/val/test)
                 np.save(sp+'acc_'+modeltype+'_'+pat_id_curr+'_testday_'+str(test_day)+save_suffix+'.npy',accs)
+                np.save(sp+'f1_'+modeltype+'_'+pat_id_curr+'_testday_'+str(test_day)+save_suffix+'.npy',f1_scores)
                 np.save(sp+'last_training_epoch_gen_tf'+modeltype+'_'+pat_id_curr+'_testday_'
                         +str(test_day)+save_suffix+'.npy', last_epochs)
         

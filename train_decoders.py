@@ -14,7 +14,7 @@ from transfer_learn_nn_eeg import transfer_learn_nn_eeg
 t_start = time.time()
 ##################USER-DEFINED PARAMETERS##################
 # Where data will be saved: rootpath + dataset + '/'
-rootpath = '/home/zsteineh/zoe_sanbox/regression/results/rotated_quadrants/'
+rootpath = '/home/zsteineh/zoe_sanbox/regression/results/f1_rotated_quadrants/'
 dataset = 'reach_a'
 
 # Data load paths
