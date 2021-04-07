@@ -26,6 +26,7 @@ import pyriemann
 # Custom imports
 from htnet_model import htnet
 from model_utils import load_data, folds_choose_subjects, subject_data_inds, roi_proj_rf, str2bool, get_custom_motor_rois, proj_mats_good_rois, get_quadrants
+from F1_callback import Metrics
 
 def cnn_model(X_train, Y_train,X_validate, Y_validate,X_test,Y_test,chckpt_path,modeltype,
               proj_mat_out=None,sbj_order_train=None,sbj_order_validate=None,
@@ -68,7 +69,7 @@ def cnn_model(X_train, Y_train,X_validate, Y_validate,X_test,Y_test,chckpt_path,
     else:
         fittedModel = model.fit(X_train, Y_train, batch_size = 16, epochs = epochs, 
                                 verbose = 2, validation_data=(X_validate, Y_validate),
-                                callbacks=[checkpointer,early_stop])
+                                callbacks=[checkpointer,early_stop, Metrics(validation=(X_validate, Y_validate))])
     t_fit_total = time.time() - t_start_fit
     
     # Get the last epoch for training
